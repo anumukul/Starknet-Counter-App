@@ -1,6 +1,7 @@
-import { useScaffoldWriteContract } from "../hooks/scaffold-stark/useScaffoldWriteContract";
-import { useScaffoldReadContract } from "../hooks/scaffold-stark/useScaffoldReadContract";
+"use client";
 
+import { useScaffoldWriteContract } from "../hooks/scaffold-stark/useScaffoldWriteContract";
+import { toSafeNumber } from "../utils/bigintUtils";
 
 export const DecreaseCounterButton = ({ counter }: { counter: any }) => {
   const { sendAsync, status } = useScaffoldWriteContract({
@@ -9,26 +10,35 @@ export const DecreaseCounterButton = ({ counter }: { counter: any }) => {
     args: [],
   });
 
+  const valueNum = toSafeNumber(counter);
+  const isBusy = status === "pending";
+  const isDisabled = isBusy || counter === undefined || valueNum <= 0;
 
-  const valueNum=counter?Number(counter):0;
-  const isBusy=status=="pending";
-  const isDisabled=isBusy || counter==undefined || valueNum<=0;
-
-
-
-
-
-
-  
-return (
-  <button
-    className="btn btn-primary btn-sm"
-    onClick={() => sendAsync()}
-    disabled={isDisabled}
+  const handleDecrease = async () => {
+    if (isDisabled) return;
     
-    title={valueNum <= 0 ? "Counter is already 0" : undefined}
-  >
-    {isBusy ? "Decreasing..." : "-1"}
-  </button>
-);
+    try {
+      await sendAsync();
+    } catch (error) {
+      console.error("Failed to decrease counter:", error);
+    }
+  };
+
+  return (
+    <button
+      className="btn btn-primary btn-sm"
+      onClick={handleDecrease}
+      disabled={isDisabled}
+      title={valueNum <= 0 ? "Counter is already 0" : "Decrease counter by 1"}
+    >
+      {isBusy ? (
+        <>
+          <span className="loading loading-spinner loading-xs"></span>
+          Decreasing...
+        </>
+      ) : (
+        "-1"
+      )}
+    </button>
+  );
 };

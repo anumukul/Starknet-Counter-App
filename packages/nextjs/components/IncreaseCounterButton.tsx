@@ -9,13 +9,29 @@ export const IncreaseCounterButton = () => {
     args: [],
   }); 
 
+  const handleIncrease = async () => {
+    try {
+      await sendAsync();
+    } catch (error) {
+      console.error("Failed to increase counter:", error);
+    }
+  };
+
   return (
     <button
       className="btn btn-primary btn-sm"
-      onClick={() => sendAsync()}
+      onClick={handleIncrease}
       disabled={status === "pending"}
+      title="Increase counter by 1"
     >
-      {status === "pending" ? "Increasing..." : "+1"}
+      {status === "pending" ? (
+        <>
+          <span className="loading loading-spinner loading-xs"></span>
+          Increasing...
+        </>
+      ) : (
+        "+1"
+      )}
     </button>
   );
 };

@@ -51,19 +51,6 @@ const TxnNotification = ({
   );
 };
 
-/**
- * Handles sending transactions to Starknet contracts with comprehensive UI feedback and state management.
- * This hook provides a complete transaction experience including fee estimation, notifications,
- * transaction state tracking, and block explorer integration. It supports both prepared transactions
- * (using starknet-react's sendTransaction) and direct execution with automatic fee estimation.
- *
- * @param _walletClient - Optional wallet client to use. If not provided, will use the connected account from useAccount
- * @returns {UseTransactorReturn} An object containing:
- *   - writeTransaction: (tx: Call[], withSendTransaction?: boolean) => Promise<string | undefined> - Async function that sends transactions with fee estimation, notifications, and state management
- *   - transactionReceiptInstance: UseTransactionReceiptResult - Transaction receipt data and status from useTransactionReceipt
- *   - sendTransactionInstance: UseSendTransactionResult - Send transaction state and methods from useSendTransaction
- * @see {@link https://scaffoldstark.com/docs/hooks/useTransactor}
- */
 export const useTransactor = (
   _walletClient?: AccountInterface,
 ): UseTransactorReturn => {
@@ -132,8 +119,9 @@ export const useTransactor = (
       notificationId = notification.loading(
         <TxnNotification message="Awaiting for user confirmation" />,
       );
+      
       if (tx != null && withSendTransaction) {
-        // Tx is already prepared by the caller
+        // Use starknet-react's sendTransaction for better compatibility
         const result = await sendTransactionInstance.sendAsync(tx);
         if (typeof result === "string") {
           transactionHash = result;
@@ -142,53 +130,26 @@ export const useTransactor = (
         }
       } else if (tx != null) {
         try {
-          // First try to estimate fees
-          const estimatedFee = await walletClient.estimateInvokeFee(
-            tx as Call[],
-          );
-
-          // Use estimated fee with a safety margin (multiply by 1.5)
-          const maxFee =
-            (BigInt(estimatedFee.overall_fee) * BigInt(15)) / BigInt(10);
-
-          // Set RPC 0.8 compatible parameters with estimated fees
+          // Simplified transaction execution without complex fee estimation
           const txOptions = {
             version: ETransactionVersion.V3,
-            maxFee: "0x" + maxFee.toString(16),
+            // Use reasonable default values that work on devnet
+            maxFee: "0x16345785d8a0000", // 0.1 ETH in wei (reasonable for devnet)
           };
 
           transactionHash = (await walletClient.execute(tx, txOptions))
             .transaction_hash;
-        } catch (feeEstimationError) {
-          console.warn(
-            "Fee estimation failed, using fallback values:",
-            feeEstimationError,
-          );
-
-          // Fallback to safe default values if estimation fails
-          const txOptions = {
-            version: ETransactionVersion.V3,
-            // Use a reasonable maxFee value that won't exceed account balance
-            maxFee: "0x1000000000",
-            // Set resource bounds for RPC 0.8 compatibility
-            resourceBounds: {
-              l1_gas: {
-                max_amount: 0x1000000n,
-                max_price_per_unit: 0x1n,
-              },
-              l2_gas: {
-                max_amount: 0x1000000n,
-                max_price_per_unit: 0x1n,
-              },
-              l1_data_gas: {
-                max_amount: 0x1000000n,
-                max_price_per_unit: 0x1n,
-              },
-            },
-          };
-
-          transactionHash = (await walletClient.execute(tx, txOptions))
-            .transaction_hash;
+        } catch (executionError: any) {
+          console.warn("Direct execution failed, trying with minimal options:", executionError);
+          
+          // Fallback: Execute with minimal options
+          try {
+            transactionHash = (await walletClient.execute(tx))
+              .transaction_hash;
+          } catch (fallbackError: any) {
+            console.error("All execution methods failed:", fallbackError);
+            throw fallbackError;
+          }
         }
       } else {
         throw new Error("Incorrect transaction passed to transactor");
@@ -215,12 +176,24 @@ export const useTransactor = (
         notification.remove(notificationId);
       }
 
-      const errorPattern = /Contract (.*?)"}/;
-      const match = errorPattern.exec(error.message);
-      const message = match ? match[1] : error.message;
+      // Better error message extraction
+      let message = error.message || "Transaction failed";
+      
+      // Extract meaningful error messages
+      if (message.includes("ContractError")) {
+        const contractMatch = message.match(/ContractError\((.*?)\)/);
+        if (contractMatch) {
+          message = contractMatch[1];
+        }
+      } else if (message.includes("execution_status")) {
+        message = "Transaction execution failed";
+      } else if (message.includes("insufficient")) {
+        message = "Insufficient balance for transaction";
+      } else if (message.includes("allowance")) {
+        message = "Insufficient allowance for transfer";
+      }
 
       console.error("⚡️ ~ file: useTransactor.tsx ~ error", message);
-
       notification.error(message);
       throw error;
     }

@@ -1,25 +1,26 @@
-// packages/nextjs/components/SetCounterForm.tsx
 "use client";
 
 import { useAccount } from "../hooks/useAccount";
 import { useMemo, useState, useEffect } from "react";
 import { useScaffoldWriteContract } from "../hooks/scaffold-stark/useScaffoldWriteContract";
 import { useScaffoldReadContract } from "../hooks/scaffold-stark/useScaffoldReadContract";
+import { toSafeNumber, toSafeString } from "../utils/bigintUtils";
 
 export const SetCounterForm = ({ current }: { current: any }) => {
   const [value, setValue] = useState<string>("");
 
   // Update form value when current counter changes
   useEffect(() => {
-    if (current !== undefined) {
-      setValue(String(current));
+    const currentVal = toSafeNumber(current);
+    if (current !== undefined && current !== null) {
+      setValue(String(currentVal));
     }
   }, [current]);
 
   const { sendAsync, status } = useScaffoldWriteContract({
     contractName: "CounterContract",
     functionName: "set_counter",
-    args: [value ? parseInt(value) : 0], // Convert string to number for the contract
+    args: [value ? parseInt(value) : 0],
   } as any);
 
   const { address } = useAccount();
@@ -31,7 +32,7 @@ export const SetCounterForm = ({ current }: { current: any }) => {
   const normalizeToHex = (input: any): string | undefined => {
     if (input === undefined || input === null) return undefined;
     const raw: any = Array.isArray(input) ? input[0] : input;
-    const s: string = String(raw);
+    const s: string = toSafeString(raw);
     if (s.length === 0) return undefined;
     return s.startsWith("0x") ? s : "0x" + BigInt(s).toString(16);
   };
@@ -55,7 +56,19 @@ export const SetCounterForm = ({ current }: { current: any }) => {
     return n;
   })();
 
-  const hasChanged = current !== undefined && parsed !== undefined && parsed !== Number(current);
+  const currentVal = toSafeNumber(current);
+  const hasChanged = current !== undefined && parsed !== undefined && parsed !== currentVal;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (parsed === undefined || !isOwner || !hasChanged) return;
+    
+    try {
+      await sendAsync();
+    } catch (error) {
+      console.error("Failed to set counter:", error);
+    }
+  };
 
   return (
     <div className="card bg-base-100 shadow-md">
@@ -65,14 +78,7 @@ export const SetCounterForm = ({ current }: { current: any }) => {
           Only the contract owner can set a specific counter value.
         </p>
         
-        <form
-          className="flex items-center gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (parsed === undefined || !isOwner || !hasChanged) return;
-            sendAsync();
-          }}
-        >
+        <form className="flex items-center gap-3" onSubmit={handleSubmit}>
           <div className="form-control">
             <input
               className="input input-bordered input-sm w-32"
