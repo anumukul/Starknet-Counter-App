@@ -1,20 +1,49 @@
+// packages/nextjs/components/CounterValue.tsx
 "use client";
 
-import { useScaffoldReadContract } from "../hooks/scaffold-stark/useScaffoldReadContract";
-
-type Props = { value: any; isLoading?: boolean; error?: any };
-
-export const CounterValue = () => {
-  const { data, isLoading, error } = useScaffoldReadContract({
-    contractName: "CounterContract",
-    functionName: "get_counter",
-  });
+type Props = { 
+  value: any; 
+  isLoading?: boolean; 
+  error?: any 
+};
 
 export const CounterValue = ({ value, isLoading, error }: Props) => {
-  if (error) return <span className="text-error">failed</span>;
-  if (isLoading || data === undefined) return <span>...</span>;
-
-  return <span className="font-mono">{String(data)}</span>;
-  if (isLoading || value === undefined) return <span>...</span>;
-  return <span className="font-mono">{String(value)}</span>;
+  if (error) {
+    console.error("Counter value error:", error);
+    return <span className="text-error">Failed to load counter</span>;
+  }
+  
+  if (isLoading || value === undefined || value === null) {
+    return <span className="loading loading-spinner loading-sm"></span>;
+  }
+  
+  // Handle different data formats that might come from the contract
+  let displayValue = value;
+  
+  // Handle array responses (sometimes StarkNet returns arrays)
+  if (Array.isArray(value)) {
+    displayValue = value[0];
+  }
+  
+  // Handle BigInt values
+  if (typeof displayValue === 'bigint') {
+    displayValue = displayValue.toString();
+  }
+  
+  // Handle objects (for complex return types)
+  if (typeof displayValue === 'object' && displayValue !== null) {
+    // If it's an object with a single property, try to extract the value
+    const keys = Object.keys(displayValue);
+    if (keys.length === 1) {
+      displayValue = displayValue[keys[0]];
+      // Recursively handle nested types
+      if (typeof displayValue === 'bigint') {
+        displayValue = displayValue.toString();
+      }
+    } else {
+      displayValue = String(displayValue);
+    }
+  }
+  
+  return <span className="font-mono text-2xl font-bold text-primary">{String(displayValue)}</span>;
 };
