@@ -17,6 +17,13 @@ const Home = () => {
   
   // Check if counter contract is deployed
   const { data: contractInfo, isLoading: contractLoading } = useDeployedContractInfo("CounterContract");
+
+  console.log("Debug - Contract lookup:", {
+  contractInfo,
+  contractLoading,
+  // Add this to see what deployedContracts contains
+  allContracts: require('../contracts/deployedContracts').default
+});
   
   const { data, isLoading, error, refetch } = useScaffoldReadContract({
     contractName: "CounterContract",
