@@ -22,7 +22,7 @@ export const ResetCounterButton = () => {
   const { data: allowance } = useScaffoldReadContract({
     contractName: "Strk",
     functionName: "allowance",
-    args: address && counterContractData?.address ? [address, counterContractData.address] : undefined,
+    args: address && counterContractData?.address ? [address, counterContractData.address] : [],
   });
 
   const { sendAsync: approveStrk, status: approveStatus } = useScaffoldWriteContract({
