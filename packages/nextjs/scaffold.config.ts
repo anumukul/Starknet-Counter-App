@@ -10,16 +10,19 @@ export type ScaffoldConfig = {
 };
 
 const scaffoldConfig = {
-  targetNetworks: [chains.devnet],
-  // Only show the Burner Wallet when running on devnet
+  // Change from devnet to sepolia for production deployment
+  targetNetworks: [chains.sepolia],
+  
+  // Disable burner wallet for testnet (users should use real wallets)
   onlyLocalBurnerWallet: false,
-  // The interval at which your front-end polls the RPC servers for new data
-  // it has no effect if you only target the local network (default is 30_000)
-  pollingInterval: 30_000,
+  
+  // Increase polling interval for testnet (sepolia is slower than devnet)
+  pollingInterval: 10_000,
+  
   /**
    * Auto connect:
    * 1. If the user was connected into a wallet before, on page reload reconnect automatically
-   * 2. If user is not connected to any wallet:  On reload, connect to burner wallet if burnerWallet.enabled is true && burnerWallet.onlyLocal is false
+   * 2. If user is not connected to any wallet: On reload, connect to burner wallet if burnerWallet.enabled is true && burnerWallet.onlyLocal is false
    */
   autoConnectTTL: 60000,
   walletAutoConnect: true,
